@@ -1,0 +1,62 @@
+# Market data download and feature engineering pipeline configuration.
+
+tickers:
+  - SPY
+  - QQQ
+  - XLK
+  - XLF
+  - XLV
+  - XLE
+  - XLY
+  - TLT
+  - GLD
+start_date: "2011-01-01"
+end_date: "2026-01-01"
+price_column: "Close"
+paths:
+  raw_data: "data/raw"
+  processed_data: "data/processed"
+
+# Network resilience settings for yfinance vendor calls.
+download:
+  retries: 3
+  backoff_seconds: 2.0
+  minimum_rows: 30
+  max_nan_ratio: 0.05
+  strict: true
+  auto_adjust: true
+
+# Abort the pipeline if any configured ticker fails to process.
+processing:
+  allow_partial: false
+
+# Technical indicator calculation windows applied to the configured price column.
+indicators:
+  rsi_period: 14
+  macd_fast: 12
+  macd_slow: 26
+  macd_signal: 9
+  sma_periods:
+    - 20
+    - 50
+
+# Chronological dataset partitioning ratios (must sum to 1.0).
+splits:
+  train: 0.70
+  validation: 0.15
+  test: 0.15
+
+# StandardScaler normalization fitted on the training window only.
+normalization:
+  enabled: true
+  feature_columns:
+    - "RSI"
+    - "MACD"
+    - "MACD_Signal"
+    - "SMA_20"
+    - "SMA_50"
+    - "Log_Return"
+
+logging:
+  level: "INFO"
+  log_file: "logs/pipeline.log"

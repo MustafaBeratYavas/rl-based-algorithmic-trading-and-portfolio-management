@@ -1,0 +1,36 @@
+* text=auto
+
+.editorconfig text eol=lf
+.gitattributes text eol=lf
+.gitignore text eol=lf
+.pre-commit-config.yaml text eol=lf
+Makefile text eol=lf
+
+*.py text eol=lf
+*.toml text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+*.txt text eol=lf
+*.json text eol=lf
+*.html text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+
+*.csv text eol=lf
+*.parquet binary
+*.joblib binary
+*.pkl binary
+*.pt binary
+*.pth binary
+*.onnx binary
+*.zip binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.svg text eol=lf
+*.db binary
+*.db-wal binary
+*.db-shm binary
+*.sqlite binary
+*.sqlite3 binary

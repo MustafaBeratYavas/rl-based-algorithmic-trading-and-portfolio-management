@@ -1,0 +1,167 @@
+[build-system]
+requires = ["setuptools>=77", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rl-based-algorithmic-trading-and-portfolio-management"
+version = "1.0.0"
+description = "A reproducible research pipeline for reinforcement-learning-based algorithmic trading and portfolio management."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = {text = "MIT"}
+authors = [
+  { name = "Mustafa Berat Yavaş" }
+]
+dependencies = [
+    "numpy==2.4.4",
+    "pandas==2.3.3",
+    "scikit-learn==1.8.0",
+    "joblib==1.5.3",
+    "pyarrow==24.0.0",
+    "gymnasium==1.2.3",
+    "stable-baselines3==2.8.0",
+    "tensorboard==2.20.0",
+    "PyYAML==6.0.3",
+    "optuna==4.8.0",
+    "matplotlib==3.10.9",
+    "seaborn==0.13.2",
+    "yfinance==0.2.66",
+    "lxml==6.1.0",
+    "requests==2.34.1",
+]
+keywords = [
+    "algorithmic-trading",
+    "backtesting",
+    "gymnasium",
+    "portfolio-management",
+    "reinforcement-learning",
+    "stable-baselines3",
+]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial :: Investment",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+
+[project.optional-dependencies]
+dev = [
+    "mypy==1.20.2",
+    "pre-commit==4.6.0",
+    "pytest==9.0.3",
+    "pytest-cov==7.1.0",
+    "ruff==0.15.12",
+    "types-PyYAML==6.0.12.20260510",
+]
+
+[project.scripts]
+rl-build-dataset = "scripts.build_dataset:main"
+rl-train-agent = "scripts.train_agent:main"
+rl-evaluate-agent = "scripts.evaluate_agent:main"
+rl-optimize-hyperparams = "scripts.optimize_hyperparams:main"
+
+[project.urls]
+Repository = "https://github.com/MustafaBeratYavas/Reinforcement-Learning-Based-Algorithmic-Trading-And-Portfolio-Management"
+Issues = "https://github.com/MustafaBeratYavas/Reinforcement-Learning-Based-Algorithmic-Trading-And-Portfolio-Management/issues"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*", "scripts*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+  "E",
+  "W",
+  "F",
+  "I",
+  "B",
+  "C4",
+  "UP",
+  "SIM"
+]
+ignore = [
+    "B008",
+    "E501",
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src", "scripts"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit", "tests/integration"]
+pythonpath = ["src", "."]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+tmp_path_retention_policy = "none"
+addopts = [
+    "-ra",
+    "--strict-config",
+    "--strict-markers",
+    "--tb=short",
+    "-m",
+    "not integration",
+]
+markers = [
+    "integration: tests that require network access, external data providers, or long-running training",
+    "unit: fast isolated tests that rely on mocks or temporary files",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+branch = true
+source = ["src"]
+omit = [
+    "src/**/__init__.py",
+]
+
+[tool.coverage.paths]
+source = [
+    "src",
+    "*/src",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+fail_under = 85
+
+[tool.coverage.xml]
+output = "coverage.xml"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+warn_unused_ignores = true
+disallow_untyped_defs = false
+no_implicit_optional = true
+check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+module = [
+    "gymnasium.*",
+    "joblib.*",
+    "matplotlib.*",
+    "optuna.*",
+    "pandas",
+    "sklearn.*",
+    "stable_baselines3.*",
+    "yfinance.*",
+]
+ignore_missing_imports = true

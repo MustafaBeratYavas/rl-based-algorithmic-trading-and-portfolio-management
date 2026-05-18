@@ -1,0 +1,46 @@
+# Portfolio environment and RL agent observation/action configuration.
+
+# Default dataset path used when no split-specific override is provided.
+data_path: "data/processed/train_dataset.parquet"
+
+# Split-specific dataset paths resolved by the config_with_data_split helper.
+data_paths:
+  train: "data/processed/train_dataset.parquet"
+  validation: "data/processed/validation_dataset.parquet"
+  test: "data/processed/test_dataset.parquet"
+
+# Asset universe must match the tickers used during data processing.
+tickers:
+  - SPY
+  - QQQ
+  - XLK
+  - XLF
+  - XLV
+  - XLE
+  - XLY
+  - TLT
+  - GLD
+
+# Simulation economics governing episode-level portfolio accounting.
+initial_balance: 100000.0
+lookback_window: 30
+transaction_fee_pct: 0.001
+buy_fee_pct: 0.001
+sell_fee_pct: 0.001
+slippage_pct: 0.0001
+market_impact_pct: 0.0
+termination_threshold: 0.1
+reward_strategy: "sharpe"
+risk_free_rate: 0.0
+price_column: "Close"
+start_date: "2011-01-01"
+end_date: "2026-01-01"
+
+# Normalized feature columns fed to the agent observation space.
+features:
+  - "Norm_RSI"
+  - "Norm_MACD"
+  - "Norm_MACD_Signal"
+  - "Norm_SMA_20"
+  - "Norm_SMA_50"
+  - "Norm_Log_Return"

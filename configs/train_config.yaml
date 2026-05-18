@@ -1,0 +1,24 @@
+# Stable-Baselines3 training loop and model persistence configuration.
+
+algorithm: "PPO"
+total_timesteps: 500000
+optimization_timesteps: 20000
+seed: 42
+n_envs: 1
+
+# PPO-specific hyperparameters tuned via Optuna optimization.
+learning_rate: 0.00056227
+batch_size: 64
+n_steps: 1024
+gamma: 0.95
+ent_coef: 0.0000001696
+
+# Model artifact and checkpoint paths resolved relative to the project root.
+model_save_path: "models/final/ppo_portfolio_model"
+checkpoint_dir: "models/checkpoints"
+checkpoint_frequency: 10000
+tensorboard_log: "logs/tb_logs/"
+
+logging:
+  level: "INFO"
+  log_file: "logs/pipeline.log"

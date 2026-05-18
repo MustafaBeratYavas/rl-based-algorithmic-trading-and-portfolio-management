@@ -1,0 +1,82 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+
+# Virtual environments and local configuration
+venv/
+.venv/
+.venv*/
+env/
+.env
+.env.*
+!.env.example
+
+# IDE and editor metadata
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.settings/
+
+# Test, lint, type-check, and coverage outputs
+.pytest_cache/
+.pytest_tmp*/
+.ruff_cache/
+.mypy_cache/
+.pyre/
+.nox/
+.tox/
+.hypothesis/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+junit.xml
+*.cover
+
+# Operating system metadata
+.DS_Store
+Thumbs.db
+desktop.ini
+.ipynb_checkpoints/
+
+# Application runtime data and generated datasets
+data/raw/*
+!data/raw/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+logs/*
+!logs/.gitkeep
+!logs/tb_logs/
+logs/tb_logs/*
+!logs/tb_logs/.gitkeep
+!logs/optuna_studies/
+logs/optuna_studies/*
+!logs/optuna_studies/.gitkeep
+
+# Model artifacts
+models/checkpoints/*
+!models/checkpoints/.gitkeep
+models/final/*
+!models/final/.gitkeep
+*.joblib
+*.pkl
+*.pt
+*.pth
+*.onnx
+
+# Temporary files
+*.log
+*.tmp
+*.bak
+_test_output.txt
+_test_output/
+test_results.txt
