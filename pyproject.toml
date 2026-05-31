@@ -8,9 +8,10 @@ version = "1.0.0"
 description = "A reproducible research pipeline for reinforcement-learning-based algorithmic trading and portfolio management."
 readme = "README.md"
 requires-python = ">=3.11,<3.14"
-license = {text = "MIT"}
+license = "MIT"
+license-files = ["LICENSE"]
 authors = [
-  { name = "Mustafa Berat Yavaş" }
+    { name = "Mustafa Berat Yavas" },
 ]
 dependencies = [
     "numpy==2.4.4",
@@ -66,8 +67,8 @@ rl-evaluate-agent = "scripts.evaluate_agent:main"
 rl-optimize-hyperparams = "scripts.optimize_hyperparams:main"
 
 [project.urls]
-Repository = "https://github.com/MustafaBeratYavas/Reinforcement-Learning-Based-Algorithmic-Trading-And-Portfolio-Management"
-Issues = "https://github.com/MustafaBeratYavas/Reinforcement-Learning-Based-Algorithmic-Trading-And-Portfolio-Management/issues"
+Repository = "https://github.com/MustafaBeratYavas/rl-based-algorithmic-trading-and-portfolio-management"
+"Bug Tracker" = "https://github.com/MustafaBeratYavas/rl-based-algorithmic-trading-and-portfolio-management/issues"
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -78,20 +79,8 @@ line-length = 100
 target-version = "py311"
 
 [tool.ruff.lint]
-select = [
-  "E",
-  "W",
-  "F",
-  "I",
-  "B",
-  "C4",
-  "UP",
-  "SIM"
-]
-ignore = [
-    "B008",
-    "E501",
-]
+select = ["E", "W", "F", "I", "B", "C4", "UP", "SIM"]
+ignore = ["B008", "E501"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["src", "scripts"]
@@ -101,6 +90,7 @@ quote-style = "double"
 indent-style = "space"
 
 [tool.pytest.ini_options]
+minversion = "9.0"
 testpaths = ["tests/unit", "tests/integration"]
 pythonpath = ["src", "."]
 python_files = ["test_*.py"]
