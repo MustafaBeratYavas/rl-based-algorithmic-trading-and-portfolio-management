@@ -1,4 +1,4 @@
-name: RL BASED ALGORITHMIC TRADING AND PORTFOLIO MANAGEMENT CI
+name: CI
 
 on:
   push:
@@ -15,27 +15,61 @@ concurrency:
   cancel-in-progress: true
 
 env:
+  COMPOSE_DOCKER_CLI_BUILD: "1"
+  DOCKER_BUILDKIT: "1"
   PIP_DISABLE_PIP_VERSION_CHECK: "1"
   PYTHONDONTWRITEBYTECODE: "1"
   PYTHONUNBUFFERED: "1"
+  TORCH_INDEX_URL: "https://download.pytorch.org/whl/cpu"
+  TORCH_VERSION: "2.10.0"
 
 defaults:
   run:
     shell: bash
 
 jobs:
-  quality:
-    name: Python ${{ matrix.python-version }}
+  docker-quality:
+    name: Docker quality gate
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+
+      - name: Match container user to runner
+        run: |
+          echo "DOCKER_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "DOCKER_GID=$(id -g)" >> "$GITHUB_ENV"
+
+      - name: Validate Docker configuration
+        run: |
+          docker compose config --quiet
+          docker compose --profile gpu config --quiet
+          bash -n docker/entrypoint.sh
+
+      - name: Build pipeline image
+        run: docker compose build pipeline
+
+      - name: Run containerized quality gate
+        run: docker compose run --rm pipeline ci
+
+  python-compatibility:
+    name: Python ${{ matrix.python-version }} compatibility
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     strategy:
       fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12", "3.13"]
+        python-version: ["3.12", "3.13"]
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
+        with:
+          persist-credentials: false
 
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v6
@@ -46,7 +80,8 @@ jobs:
 
       - name: Install dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -m pip install --upgrade pip setuptools wheel
+          python -m pip install --index-url "$TORCH_INDEX_URL" "torch==$TORCH_VERSION"
           python -m pip install -e ".[dev]"
 
       - name: Validate installed dependencies
@@ -54,18 +89,6 @@ jobs:
 
       - name: Compile Python modules
         run: python -m compileall -q src scripts tests
-
-      - name: Validate shell launchers
-        run: |
-          bash -n setup.sh
-
-      - name: Lint with Ruff
-        run: |
-          python -m ruff check src scripts tests
-          python -m ruff format --check src scripts tests
-
-      - name: Type check with mypy
-        run: python -m mypy src scripts
 
       - name: Run unit tests with coverage
         run: |
