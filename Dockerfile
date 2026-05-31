@@ -49,7 +49,7 @@ RUN apt-get update \
 RUN groupadd --gid "${APP_GID}" app \
     && useradd --uid "${APP_UID}" --gid "${APP_GID}" --create-home --shell /usr/sbin/nologin app
 
-COPY pyproject.toml README.md LICENSE Makefile .pre-commit-config.yaml ./
+COPY pyproject.toml requirements.lock README.md LICENSE Makefile .pre-commit-config.yaml ./
 
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
     python -m pip install --upgrade pip setuptools wheel \
@@ -66,6 +66,13 @@ RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
             --timeout "${PIP_INSTALL_TIMEOUT}" \
             --progress-bar off \
             "torch==${TORCH_VERSION}"; \
+    fi \
+    && if [ "${INSTALL_EXTRAS}" = "dev" ]; then \
+        python -m pip install \
+            --retries "${PIP_INSTALL_RETRIES}" \
+            --timeout "${PIP_INSTALL_TIMEOUT}" \
+            --progress-bar off \
+            -r requirements.lock; \
     fi
 
 COPY src ./src
@@ -74,7 +81,14 @@ COPY tests ./tests
 COPY configs ./configs
 
 RUN --mount=type=cache,target=/root/.cache/pip,sharing=locked \
-    if [ -n "${INSTALL_EXTRAS}" ]; then \
+    if [ "${INSTALL_EXTRAS}" = "dev" ]; then \
+        python -m pip install \
+            --retries "${PIP_INSTALL_RETRIES}" \
+            --timeout "${PIP_INSTALL_TIMEOUT}" \
+            --progress-bar off \
+            --no-deps \
+            -e .; \
+    elif [ -n "${INSTALL_EXTRAS}" ]; then \
         python -m pip install \
             --retries "${PIP_INSTALL_RETRIES}" \
             --timeout "${PIP_INSTALL_TIMEOUT}" \
