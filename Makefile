@@ -1,51 +1,88 @@
-PYTHON ?= python
-RUFF := $(PYTHON) -m ruff
-MYPY := $(PYTHON) -m mypy
-PYTEST := $(PYTHON) -m pytest
+COMPOSE ?= docker compose
+SERVICE ?= pipeline
+GPU_SERVICE ?= pipeline-gpu
+DOCKER_UID ?= 1000
+DOCKER_GID ?= 1000
+COMPOSE_ENV := DOCKER_BUILDKIT=1 DOCKER_UID=$(DOCKER_UID) DOCKER_GID=$(DOCKER_GID)
+RUN := $(COMPOSE_ENV) $(COMPOSE) run --rm $(SERVICE)
 
-.PHONY: setup lint format type test test-unit test-integration test-all coverage ci pre-commit build-data train evaluate optimize
+.DEFAULT_GOAL := help
 
-setup:
-	$(PYTHON) -m pip install --upgrade pip
-	$(PYTHON) -m pip install -e ".[dev]"
+.PHONY: help build rebuild shell lint format type typecheck test test-unit test-integration test-all coverage ci pre-commit build-data train evaluate optimize tensorboard compose-config gpu-build gpu-train
+
+help:
+	@echo "Docker-first workflow"
+	@echo "  make build             Build the pipeline image"
+	@echo "  make ci                Run compile, lint, typecheck, and unit tests"
+	@echo "  make lint|format|type  Run quality tools in the container"
+	@echo "  make test-unit         Run unit tests with coverage"
+	@echo "  make build-data        Build or refresh datasets"
+	@echo "  make train             Train the configured agent"
+	@echo "  make evaluate          Evaluate the saved agent"
+	@echo "  make optimize          Run Optuna tuning"
+	@echo "  make tensorboard       Serve TensorBoard"
+	@echo "  make gpu-build|gpu-train  Build or run the optional GPU image"
+
+build:
+	$(COMPOSE_ENV) $(COMPOSE) build $(SERVICE)
+
+rebuild:
+	$(COMPOSE_ENV) $(COMPOSE) build --pull --no-cache $(SERVICE)
+
+shell:
+	$(RUN) shell
 
 lint:
-	$(RUFF) check src scripts tests
-	$(RUFF) format --check src scripts tests
+	$(RUN) lint
 
 format:
-	$(RUFF) check src scripts tests --fix
-	$(RUFF) format src scripts tests
+	$(RUN) format
 
-type:
-	$(MYPY) src scripts
+type: typecheck
+
+typecheck:
+	$(RUN) typecheck
 
 test: test-unit
 
 test-unit:
-	$(PYTEST) tests/unit --cov=src --cov-report=term-missing --cov-report=xml
+	$(RUN) test-unit
 
 test-integration:
-	RUN_INTEGRATION=1 $(PYTEST) tests/integration -ra --strict-config --strict-markers --tb=short -o addopts=
+	$(RUN) test-integration
 
 test-all:
-	RUN_INTEGRATION=1 $(PYTEST) tests -ra --strict-config --strict-markers --tb=short -o addopts=
+	$(RUN) test tests -ra --strict-config --strict-markers --tb=short -o addopts=
 
 coverage: test
 
-ci: lint type test
+ci:
+	$(RUN) ci
 
 pre-commit:
-	$(PYTHON) -m pre_commit run --all-files
+	$(RUN) pre-commit
 
 build-data:
-	$(PYTHON) -m scripts.build_dataset
+	$(RUN) build-data
 
 train:
-	$(PYTHON) -m scripts.train_agent
+	$(RUN) train
 
 evaluate:
-	$(PYTHON) -m scripts.evaluate_agent
+	$(RUN) evaluate
 
 optimize:
-	$(PYTHON) -m scripts.optimize_hyperparams
+	$(RUN) optimize
+
+tensorboard:
+	$(COMPOSE_ENV) $(COMPOSE) up tensorboard
+
+compose-config:
+	$(COMPOSE) config
+	$(COMPOSE) --profile gpu config
+
+gpu-build:
+	$(COMPOSE_ENV) $(COMPOSE) --profile gpu build $(GPU_SERVICE)
+
+gpu-train:
+	$(COMPOSE_ENV) $(COMPOSE) --profile gpu run --rm $(GPU_SERVICE) train

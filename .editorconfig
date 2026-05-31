@@ -1,4 +1,3 @@
-# Keeps editor defaults aligned with CI formatting and repository attributes.
 root = true
 
 [*]

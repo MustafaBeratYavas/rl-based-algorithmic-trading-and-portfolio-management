@@ -4,6 +4,9 @@
 .gitattributes text eol=lf
 .gitignore text eol=lf
 .pre-commit-config.yaml text eol=lf
+.dockerignore text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
 Makefile text eol=lf
 
 *.py text eol=lf

@@ -1,0 +1,82 @@
+name: rl-based-algorithmic-trading-and-portfolio-management
+
+x-app-environment: &app-environment
+  PYTHONDONTWRITEBYTECODE: "1"
+  PYTHONUNBUFFERED: "1"
+  PYTHONPATH: "/app"
+  MPLBACKEND: "Agg"
+  OMP_NUM_THREADS: "${OMP_NUM_THREADS:-1}"
+  OPENBLAS_NUM_THREADS: "${OPENBLAS_NUM_THREADS:-1}"
+  MKL_NUM_THREADS: "${MKL_NUM_THREADS:-1}"
+  NUMEXPR_NUM_THREADS: "${NUMEXPR_NUM_THREADS:-1}"
+  TENSORBOARD_LOGDIR: "${TENSORBOARD_LOGDIR:-logs/tb_logs}"
+  TENSORBOARD_PORT: "6006"
+
+x-common-build-args: &common-build-args
+  PYTHON_VERSION: "${PYTHON_VERSION:-3.11}"
+  APP_UID: "${DOCKER_UID:-1000}"
+  APP_GID: "${DOCKER_GID:-1000}"
+  INSTALL_EXTRAS: "${INSTALL_EXTRAS:-dev}"
+  TORCH_VERSION: "${TORCH_VERSION:-2.10.0}"
+  PIP_INSTALL_RETRIES: "${PIP_INSTALL_RETRIES:-5}"
+  PIP_INSTALL_TIMEOUT: "${PIP_INSTALL_TIMEOUT:-120}"
+
+x-app-service: &app-service
+  build:
+    context: .
+    dockerfile: Dockerfile
+    args:
+      <<: *common-build-args
+      TORCH_INDEX_URL: "${TORCH_INDEX_URL:-https://download.pytorch.org/whl/cpu}"
+  image: "${DOCKER_IMAGE:-rl-portfolio:local}"
+  init: true
+  user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+  working_dir: /app
+  environment: *app-environment
+  stop_signal: SIGINT
+  volumes:
+    - type: bind
+      source: .
+      target: /app
+    - type: bind
+      source: ./data
+      target: /app/data
+    - type: bind
+      source: ./models
+      target: /app/models
+    - type: bind
+      source: ./logs
+      target: /app/logs
+    - type: bind
+      source: ./configs
+      target: /app/configs
+      read_only: true
+
+services:
+  pipeline:
+    <<: *app-service
+    command: help
+
+  tensorboard:
+    <<: *app-service
+    command: tensorboard
+    ports:
+      - "${TENSORBOARD_HOST_PORT:-6006}:6006"
+
+  pipeline-gpu:
+    <<: *app-service
+    profiles:
+      - gpu
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        <<: *common-build-args
+        TORCH_INDEX_URL: "${GPU_TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu128}"
+    image: "${GPU_DOCKER_IMAGE:-rl-portfolio:gpu-local}"
+    command: help
+    environment:
+      <<: *app-environment
+      NVIDIA_VISIBLE_DEVICES: "${NVIDIA_VISIBLE_DEVICES:-all}"
+      NVIDIA_DRIVER_CAPABILITIES: "compute,utility"
+    gpus: all

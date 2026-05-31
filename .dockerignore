@@ -1,33 +1,30 @@
-# Python artifacts
+# Git and local editor state
+.git/
+.github/
+.vscode/
+.idea/
+.editorconfig
+.gitattributes
+.gitignore
+
+# Python build, cache, and virtual environment artifacts
 __pycache__/
 *.py[cod]
 *$py.class
-*.so
 *.egg-info/
 *.egg
-pip-wheel-metadata/
-dist/
 build/
-
-# Virtual environments and local configuration
-venv/
+dist/
 .venv/
 .venv*/
+venv/
 env/
-.env
-.env.*
-!.env.example
-
-# IDE and editor metadata
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.project
-.settings/
 
 # Test, lint, type-check, and coverage outputs
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
 .pytest_cache/
 .pytest_tmp*/
 .ruff_cache/
@@ -36,21 +33,10 @@ env/
 .nox/
 .tox/
 .hypothesis/
-.cache/
-.coverage
-.coverage.*
-coverage.xml
-htmlcov/
 junit.xml
 *.cover
 
-# Operating system metadata
-.DS_Store
-Thumbs.db
-desktop.ini
-.ipynb_checkpoints/
-
-# Application runtime data and generated datasets
+# Runtime datasets, model artifacts, and logs are mounted at runtime
 data/raw/*
 !data/raw/.gitkeep
 data/processed/*
@@ -63,17 +49,19 @@ logs/tb_logs/*
 !logs/optuna_studies/
 logs/optuna_studies/*
 !logs/optuna_studies/.gitkeep
-
-# Model artifacts
 models/checkpoints/*
 !models/checkpoints/.gitkeep
 models/final/*
 !models/final/.gitkeep
-*.joblib
-*.pkl
-*.pt
-*.pth
-*.onnx
+
+# Local config, notebook, and OS noise
+.env
+.env.*
+!.env.example
+.DS_Store
+Thumbs.db
+desktop.ini
+.ipynb_checkpoints/
 
 # Temporary files
 *.log
