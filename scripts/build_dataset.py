@@ -1,4 +1,9 @@
-"""Run the configured market data download and feature engineering pipeline."""
+"""Coordinate the configured market data build pipeline.
+
+The CLI loads the data contract, configures logging, optionally refreshes raw
+vendor snapshots, and rebuilds processed artifacts so downstream training uses a
+single auditable dataset snapshot.
+"""
 
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ from src.utils.logger import configure_logging_from_config, get_logger
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse dataset-build options without touching runtime state."""
     parser = argparse.ArgumentParser(description="Download and process portfolio market data.")
     parser.add_argument("--config", default="configs/data_config.yaml")
     parser.add_argument("--skip-download", action="store_true")
@@ -19,6 +25,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Orchestrate download, processing, and controlled CLI failure reporting."""
     args = parse_args()
     config = load_yaml_config(args.config)
     configure_logging_from_config(config)

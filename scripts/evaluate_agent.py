@@ -1,4 +1,9 @@
-"""Evaluate a trained portfolio agent and persist deterministic backtest artifacts."""
+"""Coordinate deterministic evaluation for a trained portfolio agent.
+
+The CLI loads the selected holdout split, restores the configured model, runs a
+model-agnostic backtest, and persists the JSON report plus chart diagnostics as
+one evaluation artifact bundle.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,7 @@ from src.utils.paths import ensure_directory
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse evaluation configs, output directory, and holdout split selection."""
     parser = argparse.ArgumentParser(
         description="Evaluate a trained portfolio management RL agent."
     )
@@ -26,6 +32,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Load a trained policy, run deterministic backtesting, and persist outputs."""
     args = parse_args()
     env_config = config_with_data_split(load_yaml_config(args.env_config), args.data_split)
     train_config = load_yaml_config(args.train_config)

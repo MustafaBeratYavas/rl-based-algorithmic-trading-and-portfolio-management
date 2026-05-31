@@ -1,4 +1,9 @@
-"""Load processed datasets and assemble aligned market panels for PortfolioEnv."""
+"""Assemble processed parquet artifacts into PortfolioEnv tensors.
+
+EnvironmentDataProvider owns the data-loading boundary for simulations,
+validating feature contracts, ticker coverage, shared trading calendars, and
+finite price/feature rows before the Gym environment receives dense arrays.
+"""
 
 from __future__ import annotations
 
@@ -16,6 +21,13 @@ from src.utils.paths import resolve_project_path
 
 @dataclass(frozen=True)
 class EnvironmentDataset:
+    """Immutable, aligned tensors consumed by ``PortfolioEnv``.
+
+    ``data_matrix`` and ``close_prices`` share the same date and ticker axes. This
+    invariant lets the environment compute observations, returns, and rebalancing
+    costs without revalidating the long-form parquet input on every step.
+    """
+
     data_matrix: np.ndarray
     close_prices: np.ndarray
     tickers: list[str]
@@ -23,6 +35,13 @@ class EnvironmentDataset:
 
 
 class EnvironmentDataProvider:
+    """Load processed parquet data and build the dense environment tensors.
+
+    This class is the boundary between persisted research artifacts and the Gym
+    environment. It validates feature contracts, ticker coverage, date filters,
+    and finite price/feature rows before simulation state is initialized.
+    """
+
     DEFAULT_FEATURES = [
         "Norm_RSI",
         "Norm_MACD",
@@ -33,6 +52,7 @@ class EnvironmentDataProvider:
     ]
 
     def __init__(self, config: dict[str, Any]):
+        """Capture the environment data contract from the resolved config."""
         self.config = config
         self.logger = get_logger(__name__)
         self.feature_cols = list(config.get("features", self.DEFAULT_FEATURES))
@@ -43,6 +63,7 @@ class EnvironmentDataProvider:
         self.lookback_window = int(config.get("lookback_window", 30))
 
     def load(self) -> EnvironmentDataset:
+        """Return an aligned dataset ready for deterministic portfolio simulation."""
         # Keep file access and panel construction outside the Gym environment boundary.
         self._validate_feature_contract()
         resolved_data_path = self._resolve_data_path()
@@ -118,7 +139,7 @@ class EnvironmentDataProvider:
         )
 
     def _validate_feature_contract(self) -> None:
-        # Observations must contain engineered features, while prices remain accounting inputs.
+        """Ensure observations use engineered features, not raw accounting prices."""
         if not self.feature_cols:
             raise ValueError("PortfolioEnv requires at least one feature column.")
         if self.price_column in self.feature_cols:
@@ -129,7 +150,7 @@ class EnvironmentDataProvider:
             )
 
     def _resolve_data_path(self) -> Path:
-        # Resolve dataset paths through the project helper so CLI calls are cwd-independent.
+        """Resolve and validate the configured processed dataset path."""
         data_path = self.config.get("data_path")
         if data_path is None:
             raise ValueError("PortfolioEnv requires a data_path config value.")
@@ -141,6 +162,7 @@ class EnvironmentDataProvider:
 
     @staticmethod
     def _load_metadata(data_path: Path) -> dict[str, Any]:
+        """Load optional dataset metadata without making it a hard runtime dependency."""
         # Metadata is advisory; corrupted or missing metadata must not block data loading.
         metadata_path = data_path.parent / "dataset_metadata.json"
         if not metadata_path.exists():
@@ -155,12 +177,14 @@ class EnvironmentDataProvider:
 
     @staticmethod
     def _date_range_label(df: pd.DataFrame) -> str:
+        """Return a human-readable date range for diagnostics."""
         if df.empty:
             return "no rows"
         return f"{df.index.min().date()} through {df.index.max().date()}"
 
     @staticmethod
     def _metadata_range_label(metadata: dict[str, Any]) -> str:
+        """Return the metadata date range or an unavailable marker."""
         start_date = metadata.get("start_date")
         end_date = metadata.get("end_date")
         if not start_date or not end_date:
@@ -173,6 +197,7 @@ class EnvironmentDataProvider:
         tickers: list[str],
         required_columns: set[str],
     ) -> dict[str, pd.DataFrame]:
+        """Build one de-duplicated feature/price frame per configured ticker."""
         # Deduplicate by date per ticker so the latest vendor row wins deterministically.
         ticker_frames: dict[str, pd.DataFrame] = {}
         for ticker in tickers:
@@ -183,7 +208,7 @@ class EnvironmentDataProvider:
 
     @staticmethod
     def _shared_dates(ticker_frames: dict[str, pd.DataFrame]) -> list[pd.Timestamp]:
-        # Enforce a common trading calendar before creating dense model tensors.
+        """Find the common trading calendar required by dense tensor stacking."""
         date_sets = [set(ticker_data.index) for ticker_data in ticker_frames.values()]
         common_dates = sorted(set.intersection(*date_sets)) if date_sets else []
         if not common_dates:
@@ -196,7 +221,7 @@ class EnvironmentDataProvider:
         tickers: list[str],
         common_dates: list[pd.Timestamp],
     ) -> tuple[np.ndarray, np.ndarray]:
-        # Stack features and prices on the same ticker axis used by the action vector.
+        """Stack feature and price panels using a stable ticker/date axis order."""
         feature_panels = []
         price_panels = []
         for ticker in tickers:
@@ -214,7 +239,7 @@ class EnvironmentDataProvider:
         data_matrix: np.ndarray,
         close_prices: np.ndarray,
     ) -> tuple[list[pd.Timestamp], np.ndarray, np.ndarray]:
-        # Remove rows that would introduce NaN, inf, or zero-price arithmetic into the env.
+        """Remove rows that would make observations or return math undefined."""
         valid_feature_rows = np.isfinite(data_matrix).all(axis=(1, 2))
         valid_price_rows = np.isfinite(close_prices).all(axis=1) & (close_prices > 0).all(axis=1)
         valid_rows = valid_feature_rows & valid_price_rows

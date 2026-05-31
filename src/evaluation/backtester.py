@@ -1,4 +1,10 @@
-"""Run deterministic policy backtests and benchmark comparisons."""
+"""Evaluate trained policies against deterministic backtest baselines.
+
+Backtester coordinates model prediction, environment stepping, realized return
+reconstruction, financial metric calculation, and passive benchmark generation.
+It keeps reporting model-agnostic by deriving returns from portfolio values
+rather than from the training reward signal.
+"""
 
 from __future__ import annotations
 
@@ -18,6 +24,8 @@ from src.utils.logger import get_logger
 
 @runtime_checkable
 class PortfolioEnvLike(Protocol):
+    """Minimal environment surface required for model-agnostic backtesting."""
+
     initial_balance: float
     tickers: list[str]
     close_prices: np.ndarray
@@ -25,7 +33,15 @@ class PortfolioEnvLike(Protocol):
 
 
 class Backtester:
+    """Evaluate a trained policy and compare it against transparent baselines.
+
+    The backtester reads only the Gym contract and a small PortfolioEnv-compatible
+    surface. Reports recompute realized returns from portfolio values so metrics
+    remain independent of the reward shaping used during training.
+    """
+
     def __init__(self, env: Env, model: BaseAlgorithm):
+        """Attach the policy/environment pair and initialize reusable result buffers."""
         self.env = env
         self.model = model
         self.logger = get_logger(__name__)
@@ -33,6 +49,7 @@ class Backtester:
         self.returns: list[float] = []
 
     def run_backtest(self) -> dict:
+        """Run one deterministic evaluation episode and return a report dictionary."""
         self.logger.info("Starting backtest simulation...")
         # Reset accumulated paths so a Backtester instance can be reused safely.
         self.portfolio_values = []
@@ -67,6 +84,7 @@ class Backtester:
         return self._generate_report()
 
     def _generate_report(self) -> dict:
+        """Aggregate realized account paths into financial metrics and baselines."""
         # Convert collected paths once so metric functions operate on stable arrays.
         values_array = np.array(self.portfolio_values)
         returns_array = np.array(self.returns)
@@ -110,7 +128,7 @@ class Backtester:
         return report
 
     def _generate_benchmarks(self) -> dict[str, dict[str, float]]:
-        # Build transparent passive baselines without changing the evaluation command.
+        """Build available passive benchmarks from the environment ticker universe."""
         unwrapped_env = self._portfolio_env()
         tickers = list(unwrapped_env.tickers)
         benchmarks = {
@@ -125,7 +143,7 @@ class Backtester:
         return benchmarks
 
     def _generate_equal_weight_benchmark(self) -> dict[str, float]:
-        # Compare the learned policy against passive equal-weight exposure under the same costs.
+        """Return a passive equal-weight benchmark using all configured assets."""
         unwrapped_env = self._portfolio_env()
         tickers = list(unwrapped_env.tickers)
         if not tickers:
@@ -137,6 +155,7 @@ class Backtester:
     def _generate_static_weight_benchmark(
         self, target_weights_by_ticker: dict[str, float]
     ) -> dict[str, float]:
+        """Simulate a one-time static allocation under the environment cost model."""
         # Model static benchmarks as one initial rebalance followed by buy-and-hold growth.
         unwrapped_env = self._portfolio_env()
         close_prices = unwrapped_env.close_prices
@@ -183,6 +202,7 @@ class Backtester:
     def _calculate_initial_allocation_cost(
         self, initial_balance: float, risky_weights: np.ndarray
     ) -> float:
+        """Apply the same initial risky-asset cost model used by static benchmarks."""
         unwrapped_env = self._portfolio_env()
         buy_turnover = float(np.maximum(risky_weights, 0.0).sum())
         fee_rate = buy_turnover * float(getattr(unwrapped_env, "buy_fee_pct", 0.0))
@@ -191,6 +211,7 @@ class Backtester:
         return (fee_rate + slippage_rate + impact_rate) * initial_balance
 
     def _portfolio_env(self) -> PortfolioEnvLike:
+        """Return the unwrapped environment after validating the required protocol."""
         unwrapped_env = self.env.unwrapped
         if not isinstance(unwrapped_env, PortfolioEnvLike):
             raise TypeError(

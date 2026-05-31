@@ -1,4 +1,9 @@
-"""Train a Stable-Baselines3 portfolio agent from project configuration."""
+"""Coordinate Stable-Baselines3 training from project configuration.
+
+The CLI resolves split-specific environment data, seeds reproducibility hooks,
+constructs the requested agent, manages best-model checkpoints, and writes the
+final model artifact through the repository path contract.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +24,7 @@ from src.utils.random import set_global_seed
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse training config paths and the dataset split selector."""
     parser = argparse.ArgumentParser(description="Train a portfolio management RL agent.")
     parser.add_argument("--env-config", default="configs/env_config.yaml")
     parser.add_argument("--train-config", default="configs/train_config.yaml")
@@ -27,6 +33,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    """Train the configured policy and persist both checkpoint and final artifacts."""
     args = parse_args()
     env_config = config_with_data_split(load_yaml_config(args.env_config), args.data_split)
     train_config = load_yaml_config(args.train_config)

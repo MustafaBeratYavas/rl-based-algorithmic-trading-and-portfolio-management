@@ -1,4 +1,9 @@
-"""Calculate risk and return metrics used by backtest reports."""
+"""Calculate finite risk and return metrics for backtest reports.
+
+Metric helpers intentionally return stable numeric fallbacks for degenerate
+samples so short smoke tests and failed strategies still produce serializable,
+comparable reports.
+"""
 
 from __future__ import annotations
 
@@ -6,6 +11,7 @@ import numpy as np
 
 
 def calculate_max_drawdown(portfolio_values: np.ndarray) -> float:
+    """Return the largest peak-to-trough loss in an account-value path."""
     if len(portfolio_values) == 0:
         return 0.0
     peak = portfolio_values[0]
@@ -30,6 +36,12 @@ def calculate_sharpe_ratio(
     annualization_factor: int = 252,
     annualize: bool = True,
 ) -> float:
+    """Calculate a finite Sharpe ratio from periodic returns.
+
+    Degenerate samples return ``0.0`` instead of propagating ``nan`` so reports
+    remain serializable and comparable across short smoke tests and full runs.
+    """
+
     if len(returns) < 2:
         return 0.0
     mean_return = np.mean(returns)
@@ -50,6 +62,7 @@ def calculate_sortino_ratio(
     annualization_factor: int = 252,
     annualize: bool = True,
 ) -> float:
+    """Calculate a finite Sortino ratio using downside volatility only."""
     if len(returns) < 2:
         return 0.0
     mean_return = np.mean(returns)
@@ -70,8 +83,11 @@ def calculate_sortino_ratio(
 
 
 class FinancialMetrics:
+    """Backward-compatible namespace around the functional metric API."""
+
     @staticmethod
     def calculate_max_drawdown(portfolio_values: np.ndarray) -> float:
+        """Delegate max drawdown calculation to the functional API."""
         return calculate_max_drawdown(portfolio_values)
 
     @staticmethod
@@ -81,6 +97,7 @@ class FinancialMetrics:
         annualization_factor: int = 252,
         annualize: bool = True,
     ) -> float:
+        """Delegate Sharpe ratio calculation to the functional API."""
         return calculate_sharpe_ratio(
             returns,
             risk_free_rate=risk_free_rate,
@@ -95,6 +112,7 @@ class FinancialMetrics:
         annualization_factor: int = 252,
         annualize: bool = True,
     ) -> float:
+        """Delegate Sortino ratio calculation to the functional API."""
         return calculate_sortino_ratio(
             returns,
             risk_free_rate=risk_free_rate,

@@ -1,4 +1,10 @@
-"""Implement the long-only portfolio allocation environment used by SB3 agents."""
+"""Simulate long-only portfolio allocation for Stable-Baselines3 agents.
+
+PortfolioEnv owns the accounting loop: target allocation normalization,
+transaction frictions, cash handling, market drift, reward calculation, and
+episode termination. The environment consumes prevalidated tensors so step-time
+logic stays focused on portfolio state transitions.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +20,14 @@ from src.utils.logger import get_logger
 
 
 class PortfolioEnv(gym.Env):
+    """Gymnasium environment for long-only portfolio rebalancing.
+
+    The environment treats actions as target allocations over risky assets plus
+    cash, applies transaction frictions before market growth, and exposes only
+    trailing engineered features to the agent. Raw prices remain internal
+    accounting inputs for returns, costs, and benchmark-compatible state.
+    """
+
     metadata = {"render_modes": ["human"]}
 
     def __init__(
@@ -22,6 +36,7 @@ class PortfolioEnv(gym.Env):
         dataset: EnvironmentDataset | None = None,
         data_provider: EnvironmentDataProvider | None = None,
     ):
+        """Initialize simulation economics, spaces, reward strategy, and data tensors."""
         super().__init__()
         self.logger = get_logger(__name__)
         self.config = config
@@ -87,7 +102,7 @@ class PortfolioEnv(gym.Env):
         dataset: EnvironmentDataset | None,
         data_provider: EnvironmentDataProvider | None,
     ) -> None:
-        # Accept injected datasets for tests while production runs load from configured files.
+        """Load environment tensors from injected test data or the configured provider."""
         loaded_dataset = dataset or (data_provider or EnvironmentDataProvider(self.config)).load()
         self.data_matrix = loaded_dataset.data_matrix
         self.close_prices = loaded_dataset.close_prices
@@ -95,6 +110,7 @@ class PortfolioEnv(gym.Env):
         self.dates = loaded_dataset.dates
 
     def _reset_state(self) -> None:
+        """Restore the episode ledger to the canonical all-cash initial state."""
         # Start each episode fully in cash so the first action performs the initial allocation.
         self.current_step = self.lookback_window
         self.portfolio_value = self.initial_balance
@@ -110,11 +126,13 @@ class PortfolioEnv(gym.Env):
         seed: int | None = None,
         options: dict[str, Any] | None = None,
     ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
+        """Reset the episode and return a defensive initial observation."""
         super().reset(seed=seed)
         self._reset_state()
         return self._get_observation(), self._get_info()
 
     def _get_observation(self) -> dict[str, np.ndarray]:
+        """Return the trailing market window and current allocation weights."""
         if self.current_step < self.lookback_window or self.current_step > len(self.data_matrix):
             raise RuntimeError(
                 "PortfolioEnv observation step is outside the available data matrix: "
@@ -130,6 +148,7 @@ class PortfolioEnv(gym.Env):
         }
 
     def _get_info(self, date_step: int | None = None) -> dict[str, Any]:
+        """Build diagnostic episode metadata while bounding date lookup safely."""
         info_step = self.current_step if date_step is None else date_step
         bounded_step = min(max(info_step, 0), len(self.dates) - 1)
         return {
@@ -144,6 +163,7 @@ class PortfolioEnv(gym.Env):
         self,
         action: np.ndarray,
     ) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
+        """Apply one target allocation, update the ledger, and emit Gym step output."""
         if self.done:
             raise RuntimeError("Cannot call step() after the episode has terminated or truncated.")
         if self.current_step >= len(self.close_prices):
@@ -202,7 +222,7 @@ class PortfolioEnv(gym.Env):
         )
 
     def _normalize_action(self, action: np.ndarray) -> np.ndarray:
-        # Sanitize invalid model output into a valid allocation before touching account state.
+        """Convert arbitrary model output into a valid non-negative allocation vector."""
         action_array = np.asarray(action, dtype=np.float32).reshape(-1)
         if action_array.shape != self.action_space.shape:
             raise ValueError(
@@ -219,6 +239,7 @@ class PortfolioEnv(gym.Env):
         return (action_array / total).astype(np.float32)
 
     def _calculate_transaction_costs(self, target_weights: np.ndarray) -> float:
+        """Calculate trading frictions from risky-asset turnover at current equity."""
         # Charge costs on risky-asset turnover; cash absorbs residual allocation without fees.
         weight_delta = target_weights[:-1] - self.weights[:-1]
         buy_turnover = np.maximum(weight_delta, 0.0).sum()
@@ -235,6 +256,7 @@ class PortfolioEnv(gym.Env):
         component_growth: np.ndarray,
         portfolio_growth: float,
     ) -> np.ndarray:
+        """Revalue post-trade weights after asset and cash growth."""
         # Revalue target weights after market movement so the next rebalance pays real turnover.
         if portfolio_growth <= self.action_epsilon or not np.isfinite(portfolio_growth):
             weights = np.zeros(self.n_assets + 1, dtype=np.float32)
@@ -252,6 +274,7 @@ class PortfolioEnv(gym.Env):
         return cast(np.ndarray, (drifted_weights / total).astype(np.float32))
 
     def render(self) -> None:
+        """Log the current account state without requiring a graphical backend."""
         # Keep rendering logger-based so training jobs remain safe in headless environments.
         info = self._get_info()
         self.logger.info(
@@ -263,4 +286,5 @@ class PortfolioEnv(gym.Env):
         )
 
     def close(self) -> None:
+        """Satisfy the Gymnasium cleanup hook; no external resources are held."""
         pass

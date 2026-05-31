@@ -1,4 +1,9 @@
-"""Download adjusted OHLCV market data and enforce vendor response quality gates."""
+"""Fetch raw market data and enforce the first pipeline quality gate.
+
+YFinanceDownloader coordinates vendor access, retry/backoff behavior, response
+shape validation, and CSV persistence. It deliberately stops before feature
+engineering so downstream data-processing decisions remain isolated and auditable.
+"""
 
 from __future__ import annotations
 
@@ -15,9 +20,18 @@ from src.utils.paths import ensure_directory
 
 
 class YFinanceDownloader:
+    """Download and persist raw market data under a strict OHLCV contract.
+
+    The downloader is intentionally responsible for vendor tolerance only:
+    retries, backoff, response shape validation, and raw CSV persistence. Feature
+    cleaning and split decisions stay in ``DataProcessor`` so data lineage remains
+    easy to audit.
+    """
+
     REQUIRED_COLUMNS = {"Open", "High", "Low", "Close", "Volume"}
 
     def __init__(self, config: dict[str, Any]):
+        """Initialize vendor, path, and quality-threshold settings from config."""
         self.config = config
         self.logger = get_logger(__name__)
         self.tickers = config.get("tickers", [])
@@ -35,6 +49,7 @@ class YFinanceDownloader:
         self.auto_adjust = bool(download_config.get("auto_adjust", True))
 
     def fetch_data(self) -> None:
+        """Download every configured ticker and enforce strict/partial failure policy."""
         # Reject empty ticker universes before the pipeline can appear to succeed.
         if not self.tickers:
             raise ValueError("No tickers configured for data download.")
@@ -57,6 +72,7 @@ class YFinanceDownloader:
         self.logger.info("Data download process completed.")
 
     def _download_ticker(self, ticker: str) -> bool:
+        """Download a single ticker with retry/backoff and return persistence status."""
         # Retry transient provider and network failures before marking the ticker unavailable.
         for attempt in range(self.retries):
             try:
@@ -102,7 +118,7 @@ class YFinanceDownloader:
         return False
 
     def _validate_download(self, df: pd.DataFrame, ticker: str) -> None:
-        # Enforce the minimum OHLCV contract required by the processor.
+        """Validate the raw vendor response before it can enter the data lake."""
         if df.empty:
             raise ValueError(f"No data retrieved for {ticker}.")
 

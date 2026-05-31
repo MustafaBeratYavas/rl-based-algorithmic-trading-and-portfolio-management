@@ -1,4 +1,9 @@
-"""Search portfolio agent hyperparameters with isolated train and validation environments."""
+"""Coordinate Optuna hyperparameter search for portfolio agents.
+
+The CLI keeps train and validation environments isolated, constrains each search
+space to SB3-supported parameters, and persists the study database so interrupted
+optimization runs can resume deterministically.
+"""
 
 from __future__ import annotations
 
@@ -19,6 +24,7 @@ from src.utils.random import set_global_seed
 
 
 def suggest_hyperparameters(trial: optuna.Trial, algorithm: str) -> dict[str, Any]:
+    """Return the Optuna search space supported by the selected SB3 algorithm."""
     algorithm = algorithm.upper()
     # Restrict each search space to parameters accepted by the selected SB3 algorithm.
     if algorithm == "PPO":
@@ -49,6 +55,7 @@ def suggest_hyperparameters(trial: optuna.Trial, algorithm: str) -> dict[str, An
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse optimization configs, split names, and study controls."""
     parser = argparse.ArgumentParser(description="Optimize portfolio RL hyperparameters.")
     parser.add_argument("--env-config", default="configs/env_config.yaml")
     parser.add_argument("--train-config", default="configs/train_config.yaml")
@@ -60,6 +67,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def build_trial_config(trial: optuna.Trial, train_config: dict[str, Any]) -> dict[str, Any]:
+    """Merge sampled hyperparameters over the immutable baseline train config."""
     algorithm = train_config.get("algorithm", "PPO")
     hyperparams = suggest_hyperparameters(trial, algorithm)
     # Let Optuna proposals override baseline values without mutating the loaded config.
@@ -77,6 +85,7 @@ def run_trial(
     train_config: dict[str, Any],
     logger: Logger,
 ) -> float:
+    """Train and evaluate one Optuna trial with isolated train/eval environments."""
     config = build_trial_config(trial, train_config)
     train_env = None
     eval_env = None
@@ -105,6 +114,7 @@ def run_trial(
 
 
 def validate_study_name(study_name: str) -> str:
+    """Validate study names before they reach Optuna's SQLite storage layer."""
     if not re.fullmatch(r"[A-Za-z0-9_]{1,128}", study_name):
         raise ConfigError(
             "Optuna study names may contain only letters, numbers, and '_', "
@@ -114,6 +124,7 @@ def validate_study_name(study_name: str) -> str:
 
 
 def main() -> None:
+    """Run or resume the persistent hyperparameter optimization study."""
     args = parse_args()
     env_config = load_yaml_config(args.env_config)
     train_env_config = config_with_data_split(env_config, args.train_data_split)

@@ -1,4 +1,9 @@
-"""Create and load supported Stable-Baselines3 agents from project configuration."""
+"""Create and load Stable-Baselines3 agents from project configuration.
+
+AgentFactory centralizes algorithm selection, constructor-parameter filtering,
+TensorBoard path resolution, and model archive loading so orchestration code
+does not leak SB3-specific compatibility rules.
+"""
 
 from __future__ import annotations
 
@@ -15,6 +20,13 @@ AlgorithmClass: TypeAlias = type[BaseAlgorithm]
 
 
 class AgentFactory:
+    """Build and load SB3 agents through an explicit project-level contract.
+
+    The factory shields orchestration code from algorithm-specific constructor
+    drift by filtering configuration keys per supported algorithm and by keeping
+    model path resolution consistent across training and evaluation.
+    """
+
     _ALGORITHMS: dict[str, AlgorithmClass] = {
         "PPO": PPO,
         "SAC": SAC,
@@ -58,6 +70,7 @@ class AgentFactory:
 
     @classmethod
     def supported_algorithms(cls) -> tuple[str, ...]:
+        """Return supported algorithm names in stable display order."""
         return tuple(sorted(cls._ALGORITHMS))
 
     @classmethod
@@ -68,6 +81,7 @@ class AgentFactory:
         config: dict[str, Any],
         verbose: int | None = None,
     ) -> BaseAlgorithm:
+        """Instantiate a configured SB3 agent with project-safe keyword filtering."""
         algorithm_name = cls._normalize_algorithm(algorithm)
         algorithm_class = cls._ALGORITHMS[algorithm_name]
         # Pass only algorithm-specific constructor parameters to avoid SB3 config leakage.
@@ -87,6 +101,7 @@ class AgentFactory:
         env: Env | VecEnv | None = None,
         **kwargs: Any,
     ) -> BaseAlgorithm:
+        """Load a persisted SB3 model, accepting extension-neutral config paths."""
         algorithm_name = cls._normalize_algorithm(algorithm)
         resolved_path = resolve_project_path(model_path)
         # Accept extension-neutral config paths because SB3 persists models as zip archives.
@@ -98,6 +113,7 @@ class AgentFactory:
 
     @classmethod
     def _normalize_algorithm(cls, algorithm: str) -> str:
+        """Normalize and validate an algorithm name from user configuration."""
         algorithm_name = algorithm.upper()
         if algorithm_name not in cls._ALGORITHMS:
             # Include supported values so configuration mistakes are actionable at startup.
@@ -107,6 +123,7 @@ class AgentFactory:
 
     @classmethod
     def _extract_model_kwargs(cls, algorithm: str, config: dict[str, Any]) -> dict[str, Any]:
+        """Select only constructor parameters supported by the requested algorithm."""
         allowed_parameters = cls._PARAMETERS[algorithm]
         return {
             key: value

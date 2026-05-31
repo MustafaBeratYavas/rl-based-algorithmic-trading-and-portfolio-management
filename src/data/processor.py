@@ -1,4 +1,10 @@
-"""Transform raw OHLCV files into validated model-ready training datasets."""
+"""Build model-ready datasets from raw OHLCV files.
+
+DataProcessor owns the integrity boundary between vendor snapshots and model
+training artifacts. It validates raw inputs, derives technical features, applies
+train-only normalization, writes split-specific parquet files, and records
+lineage metadata for reproducible experiments.
+"""
 
 from __future__ import annotations
 
@@ -16,12 +22,21 @@ from src.utils.paths import ensure_directory, resolve_project_path
 
 
 class DataProcessor:
+    """Convert per-ticker raw CSV files into reproducible modeling artifacts.
+
+    The processor owns all data-integrity decisions after download: numeric
+    coercion, indicator generation, chronological splitting, train-only feature
+    scaling, split parquet writes, and metadata checksums. It never backfills
+    prices or fits transforms outside the training window.
+    """
+
     REQUIRED_COLUMNS = {"Open", "High", "Low", "Close", "Volume"}
     DEFAULT_SPLITS = {"train": 0.7, "validation": 0.15, "test": 0.15}
     DEFAULT_NORMALIZATION = {"enabled": False}
     DEFAULT_PROCESSING = {"allow_partial": False}
 
     def __init__(self, config: dict[str, Any]):
+        """Bind processing paths, feature settings, and fail-fast policy from config."""
         self.config = config
         self.logger = get_logger(__name__)
         self.raw_path = resolve_project_path(config.get("paths", {}).get("raw_data", "data/raw"))
@@ -39,6 +54,7 @@ class DataProcessor:
         self.processing_config = {**self.DEFAULT_PROCESSING, **config.get("processing", {})}
 
     def process_all(self) -> None:
+        """Run the full raw-to-processed dataset build as an atomic orchestration step."""
         # Fail fast on empty universes; a successful run must always produce real assets.
         if not self.tickers:
             raise ValueError("No tickers configured for data processing.")
@@ -91,6 +107,7 @@ class DataProcessor:
         self.logger.info("Saved processed dataset to %s", output_file)
 
     def _load_raw_csv(self, file_path: str | Path) -> pd.DataFrame:
+        """Load one raw CSV into a sorted numeric time series indexed by date."""
         df = pd.read_csv(file_path, index_col=0, parse_dates=True)
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError(f"Expected a DatetimeIndex in {file_path}")
@@ -100,7 +117,7 @@ class DataProcessor:
         return df.dropna(how="all").sort_index()
 
     def _validate_raw_data(self, df: pd.DataFrame, ticker: str) -> None:
-        # Validate the minimum OHLCV and price-column contract before indicator generation.
+        """Enforce the minimum price contract required for feature engineering."""
         missing = self.REQUIRED_COLUMNS.difference(df.columns)
         if missing:
             raise ValueError(f"{ticker} is missing required columns: {sorted(missing)}")
@@ -112,12 +129,14 @@ class DataProcessor:
             raise ValueError(f"{ticker} contains non-positive prices in {self.price_column}.")
 
     def _clean_data(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Remove invalid values without introducing look-ahead leakage."""
         # Forward-fill only; backward-fill would leak future information into earlier rows.
         cleaned = df.replace([np.inf, -np.inf], np.nan).ffill()
         return cleaned.dropna()
 
     @classmethod
     def _load_split_config(cls, split_config: dict[str, Any] | None) -> dict[str, float]:
+        """Return explicit train/validation/test ratios with complete-key validation."""
         if split_config is None:
             return {key: float(value) for key, value in cls.DEFAULT_SPLITS.items()}
 
@@ -132,12 +151,14 @@ class DataProcessor:
 
     @staticmethod
     def _drop_invalid_feature_rows(df: pd.DataFrame) -> pd.DataFrame:
+        """Drop rows with unusable model features and fail when no signal remains."""
         cleaned = df.replace([np.inf, -np.inf], np.nan).dropna()
         if cleaned.empty:
             raise ValueError("No valid rows remain after feature cleaning.")
         return cleaned
 
     def _add_indicators(self, df: pd.DataFrame) -> pd.DataFrame:
+        """Create deterministic technical indicators from the configured price column."""
         # Derive indicators from one configured price series to avoid mixed price bases.
         price = df[self.price_column]
 
@@ -160,6 +181,7 @@ class DataProcessor:
         return df.dropna()
 
     def _calculate_rsi(self, series: pd.Series, period: int) -> pd.Series:
+        """Calculate RSI with a bounded denominator for monotonic price windows."""
         delta = series.diff()
         gain = (
             delta.where(delta > 0, 0.0)
@@ -191,6 +213,7 @@ class DataProcessor:
         slow: int,
         signal: int,
     ) -> tuple[pd.Series, pd.Series]:
+        """Calculate MACD and signal lines with minimum-history windows."""
         ema_fast = series.ewm(span=fast, adjust=False, min_periods=fast).mean()
         ema_slow = series.ewm(span=slow, adjust=False, min_periods=slow).mean()
         macd = ema_fast - ema_slow
@@ -198,6 +221,7 @@ class DataProcessor:
         return macd, macd_signal
 
     def _build_chronological_splits(self, df: pd.DataFrame) -> dict[str, pd.DatetimeIndex]:
+        """Create shared date-based splits so all tickers use identical boundaries."""
         # Split by unique dates so every asset observes the same out-of-sample boundaries.
         ratios = {
             "train": float(self.split_config.get("train", 0.7)),
@@ -229,6 +253,7 @@ class DataProcessor:
         df: pd.DataFrame,
         train_dates: pd.DatetimeIndex,
     ) -> pd.DataFrame:
+        """Add normalized feature columns using scalers fitted only on training dates."""
         if not self.normalization_config.get("enabled", False):
             return df
 
@@ -276,7 +301,7 @@ class DataProcessor:
         return result
 
     def _infer_feature_columns(self, df: pd.DataFrame) -> list[str]:
-        # Infer only engineered features; raw prices stay reserved for return calculations.
+        """Infer engineered feature columns while excluding raw prices and labels."""
         excluded_columns = self.REQUIRED_COLUMNS | {"Ticker", self.price_column}
         feature_columns = [
             column
@@ -290,7 +315,7 @@ class DataProcessor:
     def _write_split_files(
         self, df: pd.DataFrame, split_dates: dict[str, pd.DatetimeIndex]
     ) -> None:
-        # Persist split-specific parquet files so train, validation, and test stay explicit.
+        """Persist split-specific datasets for explicit train/eval consumption."""
         for split_name, dates in split_dates.items():
             split_df = df[df.index.isin(dates)]
             split_df.to_parquet(self.processed_path / f"{split_name}_dataset.parquet")
@@ -301,6 +326,7 @@ class DataProcessor:
         output_file: Path,
         skipped_tickers: list[str],
     ) -> None:
+        """Write dataset lineage metadata next to the processed artifact."""
         # Capture dataset lineage so experiments can be traced back to an exact artifact.
         checksum = hashlib.sha256(output_file.read_bytes()).hexdigest()
         metadata = {

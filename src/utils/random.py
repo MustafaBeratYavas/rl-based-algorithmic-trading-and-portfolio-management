@@ -1,4 +1,9 @@
-"""Centralize reproducibility helpers for experiment randomness."""
+"""Centralize reproducibility helpers for experiment randomness.
+
+Random utilities align Python, project-owned NumPy generators, and optional torch
+seeding so training orchestration can be deterministic without forcing every
+helper to mutate global RNG state directly.
+"""
 
 from __future__ import annotations
 
@@ -14,6 +19,13 @@ def make_rng(seed: int | None = None) -> np.random.Generator:
 
 
 def set_global_seed(seed: int | None) -> np.random.Generator | None:
+    """Seed process-level RNGs used by orchestration and optional torch training.
+
+    A ``None`` seed leaves global randomness untouched. NumPy's modern generator
+    is returned for project-owned draws while library-level seeds are aligned for
+    reproducible Stable-Baselines3 and torch behavior.
+    """
+
     if seed is None:
         return None
 

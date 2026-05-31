@@ -1,4 +1,9 @@
-"""Configure shared console and file logging for project commands."""
+"""Configure shared console and file logging for project commands.
+
+Logging setup is process-wide and idempotent, ensuring CLI entry points, data
+pipeline stages, and training jobs share one formatter without duplicating
+handlers across repeated imports.
+"""
 
 from __future__ import annotations
 
@@ -17,6 +22,7 @@ def configure_logging(
     level: int | str = logging.INFO,
     log_file: str | Path = "logs/pipeline.log",
 ) -> None:
+    """Configure process-wide console and file logging exactly once."""
     global _CONFIGURED
     # Protect one-time handler setup so concurrent callers cannot duplicate log output.
     with _LOCK:
@@ -44,6 +50,7 @@ def configure_logging(
 def configure_logging_from_config(
     config: dict, default_log_file: str = "logs/pipeline.log"
 ) -> None:
+    """Configure logging from an optional ``logging`` config mapping."""
     # Let command configs tune logging without coupling callers to logging internals.
     logging_config = config.get("logging", {}) if isinstance(config, dict) else {}
     configure_logging(
@@ -53,11 +60,13 @@ def configure_logging_from_config(
 
 
 def get_logger(name: str) -> logging.Logger:
+    """Return a configured project logger by name."""
     configure_logging()
     return logging.getLogger(name)
 
 
 def _coerce_log_level(level: int | str) -> int:
+    """Normalize integer or string log-level input into a logging constant."""
     if isinstance(level, int):
         return level
 

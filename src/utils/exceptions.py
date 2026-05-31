@@ -3,21 +3,25 @@
 from __future__ import annotations
 
 
-# Keep pipeline failures grouped under one domain exception for callers and CLIs.
 class RLPortfolioError(Exception):
+    """Base class for domain failures that callers can handle uniformly."""
+
     pass
 
 
-# Raised when an external market-data provider cannot satisfy the download contract.
 class DownloadError(RLPortfolioError):
+    """Raised when a market-data provider cannot satisfy the download contract."""
+
     pass
 
 
-# Raised when raw market data cannot be converted into model-ready artifacts.
 class ProcessingError(RLPortfolioError):
+    """Raised when raw data cannot be converted into trusted artifacts."""
+
     pass
 
 
-# Raised when training orchestration fails before a model artifact can be trusted.
 class TrainingError(RLPortfolioError):
+    """Raised when training fails before a model artifact can be trusted."""
+
     pass
