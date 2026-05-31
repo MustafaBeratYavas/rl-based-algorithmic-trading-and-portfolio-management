@@ -12,7 +12,7 @@ from src.utils.paths import PROJECT_ROOT, ensure_directory, resolve_project_path
 from src.utils.random import make_rng, set_global_seed
 
 
-# Path resolution
+# Path tests verify that runtime paths resolve from a stable project root.
 def test_resolve_project_path_preserves_absolute_paths(tmp_path) -> None:
     assert resolve_project_path(tmp_path) == tmp_path
 
@@ -47,7 +47,7 @@ def test_ensure_directory_is_idempotent_on_existing_directory(tmp_path) -> None:
     assert result == target
 
 
-# Reproducibility helpers
+# Reproducibility tests keep seeded randomness explicit and repeatable.
 def test_set_global_seed_makes_python_and_numpy_reproducible() -> None:
     # The helper should align Python randomness and return a repeatable NumPy Generator.
     first_rng = set_global_seed(123)
@@ -82,7 +82,7 @@ def test_make_rng_accepts_none_seed() -> None:
     assert 0.0 <= float(rng.random()) <= 1.0
 
 
-# Log level coercion
+# Log-level tests preserve the public logging configuration contract.
 def test_coerce_log_level_accepts_names_and_rejects_unknown_values() -> None:
     assert _coerce_log_level("INFO") == 20
 
@@ -99,7 +99,7 @@ def test_coerce_log_level_is_case_insensitive() -> None:
     assert _coerce_log_level("WARNING") == logging.WARNING
 
 
-# Config-driven logging setup
+# Logging setup tests ensure minimal configs remain valid for CLI entry points.
 def test_configure_logging_from_config_handles_empty_config(tmp_path) -> None:
     # Must not raise even if the config dict contains no logging section.
     configure_logging_from_config({}, default_log_file=str(tmp_path / "test.log"))

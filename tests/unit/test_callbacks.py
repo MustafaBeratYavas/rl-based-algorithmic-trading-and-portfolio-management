@@ -6,12 +6,15 @@ from src.models.callbacks import SaveBestModelCallback
 
 
 class FakeModel:
-    # Minimal SB3-like model surface used by SaveBestModelCallback.
+    """Minimal SB3-like surface used by ``SaveBestModelCallback`` tests."""
+
     def __init__(self, rewards):
+        """Seed the episode-info buffer with deterministic reward summaries."""
         self.ep_info_buffer = [{"r": reward} for reward in rewards]
         self.saved_paths = []
 
     def save(self, path) -> None:
+        """Record checkpoint paths instead of writing model archives."""
         self.saved_paths.append(path)
 
 

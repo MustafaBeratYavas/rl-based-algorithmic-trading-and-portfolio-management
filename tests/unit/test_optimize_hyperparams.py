@@ -14,7 +14,7 @@ from scripts.optimize_hyperparams import (
 from src.utils.config import ConfigError
 
 
-# Study name validation
+# Study name tests protect the SQLite-backed persistence contract.
 def test_validate_study_name_accepts_safe_name() -> None:
     assert validate_study_name("PPO_portfolio_2026") == "PPO_portfolio_2026"
 
@@ -39,7 +39,7 @@ def test_validate_study_name_rejects_unsafe_values(study_name: str) -> None:
         validate_study_name(study_name)
 
 
-# Hyperparameter search space suggestions
+# Search-space tests keep Optuna proposals aligned with supported algorithms.
 def test_suggest_hyperparameters_returns_ppo_keys() -> None:
     trial = MagicMock()
     trial.suggest_float.return_value = 0.001
@@ -98,7 +98,7 @@ def test_suggest_hyperparameters_rejects_unsupported_algorithm() -> None:
         suggest_hyperparameters(trial, "DQN")
 
 
-# Trial configuration builder
+# Trial-config tests verify that suggested parameters merge cleanly with defaults.
 def test_build_trial_config_merges_hyperparams_with_train_config() -> None:
     trial = MagicMock()
     trial.suggest_float.return_value = 0.0005

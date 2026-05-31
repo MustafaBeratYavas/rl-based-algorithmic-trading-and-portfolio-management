@@ -12,7 +12,7 @@ from scripts.train_agent import main as train_main
 from scripts.train_agent import parse_args as train_parse_args
 
 
-# Argument parser defaults
+# Parser tests pin the default CLI contract exposed to users.
 def test_build_dataset_parser_defaults() -> None:
     with patch("sys.argv", ["build_dataset"]):
         args = build_parse_args()
@@ -47,7 +47,7 @@ def test_train_agent_parser_defaults() -> None:
     assert args.data_split == "train"
 
 
-# CLI main orchestration with mocked dependencies
+# Main-function tests isolate orchestration by replacing external dependencies.
 def test_build_dataset_main_calls_downloader_and_processor(tmp_path) -> None:
     config = {
         "tickers": ["TEST"],

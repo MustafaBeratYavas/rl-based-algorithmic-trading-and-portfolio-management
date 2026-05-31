@@ -23,6 +23,7 @@ pytestmark = [
 
 
 def test_build_train_evaluate_smoke_pipeline(tmp_path) -> None:
+    """Exercise the local data, training, and evaluation contracts without network IO."""
     # Use synthetic OHLCV files so the smoke test covers the pipeline without network access.
     raw_path = tmp_path / "raw"
     processed_path = tmp_path / "processed"

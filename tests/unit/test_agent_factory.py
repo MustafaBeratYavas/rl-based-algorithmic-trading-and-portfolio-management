@@ -6,14 +6,17 @@ from src.models.agent_factory import AgentFactory
 
 
 class FakeAlgorithm:
-    # Minimal SB3-compatible constructor and loader used to isolate factory behavior.
+    """Minimal SB3-compatible surface used to isolate factory behavior."""
+
     def __init__(self, policy, env, **kwargs):
+        """Capture constructor inputs for assertions without creating an SB3 model."""
         self.policy = policy
         self.env = env
         self.kwargs = kwargs
 
     @classmethod
     def load(cls, path, env=None, **kwargs):
+        """Return an instance annotated with the path resolved by the factory."""
         instance = cls("loaded", env, **kwargs)
         instance.loaded_path = path
         return instance

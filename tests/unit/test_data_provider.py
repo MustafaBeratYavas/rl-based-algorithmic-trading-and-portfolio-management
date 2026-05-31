@@ -19,7 +19,7 @@ FEATURES = [
 
 
 def make_provider_config(dataset_path, **overrides):
-    # Share the default environment data contract across provider tests.
+    """Return the shared provider config with per-test overrides applied last."""
     config = {
         "data_path": str(dataset_path),
         "lookback_window": 5,

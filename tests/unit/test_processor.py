@@ -12,7 +12,7 @@ from src.data.processor import DataProcessor
 
 
 def _write_raw_prices(raw_path, ticker: str, rows: int = 10) -> None:
-    # Build compact OHLCV CSV fixtures that still satisfy short indicator warm-up windows.
+    """Write a compact OHLCV fixture that satisfies short warm-up windows."""
     dates = pd.date_range("2024-01-01", periods=rows, freq="B")
     close = np.linspace(100.0, 110.0, rows)
     frame = pd.DataFrame(
@@ -29,7 +29,7 @@ def _write_raw_prices(raw_path, ticker: str, rows: int = 10) -> None:
 
 
 def _fast_indicator_config(raw_path, processed_path, tickers: list[str]) -> dict:
-    # Short indicator windows keep end-to-end processor tests fast and deterministic.
+    """Return a processor config tuned for fast deterministic unit tests."""
     return {
         "tickers": tickers,
         "paths": {"raw_data": raw_path, "processed_data": processed_path},

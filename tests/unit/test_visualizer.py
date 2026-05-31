@@ -5,7 +5,7 @@ from __future__ import annotations
 from src.evaluation.visualizer import BacktestVisualizer
 
 
-# Equity curve rendering
+# Equity-curve tests verify that portfolio value paths are exported as chart files.
 def test_visualizer_writes_equity_curve(tmp_path) -> None:
     visualizer = BacktestVisualizer(tmp_path)
 
@@ -49,7 +49,7 @@ def test_equity_curve_respects_custom_filename(tmp_path) -> None:
     assert output_path.exists()
 
 
-# Drawdown chart rendering
+# Drawdown tests verify that peak-to-trough diagnostics are exported consistently.
 def test_visualizer_writes_drawdown_chart(tmp_path) -> None:
     visualizer = BacktestVisualizer(tmp_path)
 
@@ -85,7 +85,7 @@ def test_drawdown_chart_respects_custom_filename(tmp_path) -> None:
     assert output_path.exists()
 
 
-# Output directory management
+# Output-directory tests keep chart export behavior predictable for nested paths.
 def test_visualizer_creates_nested_output_directory(tmp_path) -> None:
     nested_dir = tmp_path / "deep" / "nested" / "charts"
     visualizer = BacktestVisualizer(nested_dir)

@@ -9,7 +9,7 @@ import pytest
 
 @pytest.fixture
 def synthetic_processed_dataset(tmp_path):
-    # Build a compact two-asset panel that matches the environment feature contract.
+    """Create a compact processed parquet panel that satisfies the env feature contract."""
     dates = pd.date_range("2024-01-01", periods=45, freq="B")
     records = []
     for ticker, offset in [("AAA", 0.0), ("BBB", 10.0)]:

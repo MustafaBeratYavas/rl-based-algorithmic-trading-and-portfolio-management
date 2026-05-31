@@ -12,16 +12,19 @@ from src.evaluation.backtester import Backtester
 
 
 class StaticAllocationModel:
-    # Minimal policy object that returns a fixed allocation for every observation.
+    """Policy double that returns one fixed allocation for every observation."""
+
     def __init__(self, action: np.ndarray):
+        """Store the action emitted by ``predict``."""
         self.action = action
 
     def predict(self, obs, deterministic: bool = True):
+        """Mirror the SB3 prediction shape while ignoring observation content."""
         return self.action, None
 
 
 def make_env_config(dataset_path) -> dict:
-    # Mirror the production environment contract with a compact fixture dataset.
+    """Return a compact environment config matching the production feature contract."""
     return {
         "data_path": str(dataset_path),
         "initial_balance": 100_000.0,
@@ -43,7 +46,7 @@ def make_env_config(dataset_path) -> dict:
 
 
 def _make_injected_dataset(n_dates: int = 8, tickers: list[str] | None = None):
-    # Build a minimal injected dataset for tests that do not need file-backed data.
+    """Build aligned in-memory tensors for tests that do not need parquet IO."""
     tickers = tickers or ["AAA", "BBB"]
     n_assets = len(tickers)
     dates = list(pd.date_range("2024-01-01", periods=n_dates, freq="B"))
@@ -60,7 +63,6 @@ def _make_injected_dataset(n_dates: int = 8, tickers: list[str] | None = None):
     )
 
 
-# Backtest report generation
 def test_equal_weight_benchmark_uses_initial_trading_cost(
     synthetic_processed_dataset,
 ) -> None:
@@ -107,7 +109,6 @@ def test_backtester_reports_spy_and_stock_bond_benchmarks() -> None:
     assert report["SPY Buy Hold Final Balance"] > report["60/40 Final Balance"]
 
 
-# Report completeness
 def test_backtest_report_contains_required_keys(synthetic_processed_dataset) -> None:
     env = PortfolioEnv(make_env_config(synthetic_processed_dataset))
     model = StaticAllocationModel(np.array([0.5, 0.5, 0.0], dtype=np.float32))
@@ -129,7 +130,6 @@ def test_backtest_report_contains_required_keys(synthetic_processed_dataset) -> 
         assert key in report, f"Missing report key: {key}"
 
 
-# Cash-only policy should grow only by risk-free rate
 def test_cash_only_policy_preserves_capital_at_zero_risk_free(
     synthetic_processed_dataset,
 ) -> None:
@@ -141,7 +141,6 @@ def test_cash_only_policy_preserves_capital_at_zero_risk_free(
     assert np.isclose(report["Final Balance"], 100_000.0)
 
 
-# Benchmark edge cases
 def test_static_weight_benchmark_returns_zero_for_empty_prices() -> None:
     dataset = _make_injected_dataset(n_dates=3, tickers=["AAA"])
     env = PortfolioEnv(
@@ -163,7 +162,6 @@ def test_static_weight_benchmark_returns_zero_for_empty_prices() -> None:
     assert report["Initial Balance"] == 100_000.0
 
 
-# Environment type validation
 def test_backtester_rejects_incompatible_environment() -> None:
     # A plain Gymnasium environment without PortfolioEnv attributes should fail.
     import gymnasium as gym
