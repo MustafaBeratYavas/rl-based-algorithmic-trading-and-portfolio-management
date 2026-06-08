@@ -36,7 +36,7 @@ class PortfolioEnv(gym.Env):
         dataset: EnvironmentDataset | None = None,
         data_provider: EnvironmentDataProvider | None = None,
     ):
-        """Initialize simulation economics, spaces, reward strategy, and data tensors."""
+        """Initialize simulation economics, spaces, reward strategy, and aligned tensors."""
         super().__init__()
         self.logger = get_logger(__name__)
         self.config = config
@@ -102,7 +102,7 @@ class PortfolioEnv(gym.Env):
         dataset: EnvironmentDataset | None,
         data_provider: EnvironmentDataProvider | None,
     ) -> None:
-        """Load environment tensors from injected test data or the configured provider."""
+        """Load tensors from injected data or from the configured provider boundary."""
         loaded_dataset = dataset or (data_provider or EnvironmentDataProvider(self.config)).load()
         self.data_matrix = loaded_dataset.data_matrix
         self.close_prices = loaded_dataset.close_prices
@@ -126,7 +126,7 @@ class PortfolioEnv(gym.Env):
         seed: int | None = None,
         options: dict[str, Any] | None = None,
     ) -> tuple[dict[str, np.ndarray], dict[str, Any]]:
-        """Reset the episode and return a defensive initial observation."""
+        """Reset the episode ledger and return a defensive initial observation."""
         super().reset(seed=seed)
         self._reset_state()
         return self._get_observation(), self._get_info()
@@ -148,7 +148,7 @@ class PortfolioEnv(gym.Env):
         }
 
     def _get_info(self, date_step: int | None = None) -> dict[str, Any]:
-        """Build diagnostic episode metadata while bounding date lookup safely."""
+        """Build diagnostic metadata while bounding date lookup to available rows."""
         info_step = self.current_step if date_step is None else date_step
         bounded_step = min(max(info_step, 0), len(self.dates) - 1)
         return {
@@ -163,7 +163,7 @@ class PortfolioEnv(gym.Env):
         self,
         action: np.ndarray,
     ) -> tuple[dict[str, np.ndarray], float, bool, bool, dict[str, Any]]:
-        """Apply one target allocation, update the ledger, and emit Gym step output."""
+        """Apply one allocation, account for costs and drift, and emit Gym step output."""
         if self.done:
             raise RuntimeError("Cannot call step() after the episode has terminated or truncated.")
         if self.current_step >= len(self.close_prices):
@@ -222,7 +222,7 @@ class PortfolioEnv(gym.Env):
         )
 
     def _normalize_action(self, action: np.ndarray) -> np.ndarray:
-        """Convert arbitrary model output into a valid non-negative allocation vector."""
+        """Convert arbitrary model output into a non-negative allocation vector that sums to one."""
         action_array = np.asarray(action, dtype=np.float32).reshape(-1)
         if action_array.shape != self.action_space.shape:
             raise ValueError(
@@ -239,7 +239,7 @@ class PortfolioEnv(gym.Env):
         return (action_array / total).astype(np.float32)
 
     def _calculate_transaction_costs(self, target_weights: np.ndarray) -> float:
-        """Calculate trading frictions from risky-asset turnover at current equity."""
+        """Calculate fees, slippage, and market impact from risky-asset turnover."""
         # Charge costs on risky-asset turnover; cash absorbs residual allocation without fees.
         weight_delta = target_weights[:-1] - self.weights[:-1]
         buy_turnover = np.maximum(weight_delta, 0.0).sum()
@@ -256,7 +256,7 @@ class PortfolioEnv(gym.Env):
         component_growth: np.ndarray,
         portfolio_growth: float,
     ) -> np.ndarray:
-        """Revalue post-trade weights after asset and cash growth."""
+        """Revalue post-trade weights after asset and cash growth, falling back to cash."""
         # Revalue target weights after market movement so the next rebalance pays real turnover.
         if portfolio_growth <= self.action_epsilon or not np.isfinite(portfolio_growth):
             weights = np.zeros(self.n_assets + 1, dtype=np.float32)

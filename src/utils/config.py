@@ -33,6 +33,10 @@ def load_yaml_config(
     Relative paths are anchored to ``project_root`` and absolute paths must stay
     inside that root. This keeps CLI configuration loading deterministic and
     prevents accidental reads from unrelated host paths.
+
+    Raises:
+        FileNotFoundError: If the resolved configuration file does not exist.
+        ConfigError: If the path escapes the project root or the YAML root is not a mapping.
     """
 
     # Resolve through the project root so CLI invocations cannot escape the workspace.

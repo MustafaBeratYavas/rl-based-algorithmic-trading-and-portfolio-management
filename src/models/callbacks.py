@@ -16,7 +16,7 @@ from src.utils.paths import ensure_directory
 
 
 class SaveBestModelCallback(BaseCallback):
-    """Persist the best observed SB3 checkpoint while bounding checkpoint churn."""
+    """Persist a checkpoint only when monitored episode reward improves."""
 
     def __init__(self, check_freq: int, save_path: str, verbose: int = 1):
         """Configure checkpoint cadence and output directory."""
@@ -32,7 +32,7 @@ class SaveBestModelCallback(BaseCallback):
             self.save_path = ensure_directory(self.save_path)
 
     def _on_step(self) -> bool:
-        """Inspect SB3 episode summaries and save only on reward improvement."""
+        """Inspect SB3 episode summaries and save only when mean reward improves."""
         # Use SB3 episode summaries when monitor data is available for reward tracking.
         ep_info_buffer = self.model.ep_info_buffer
         if self.n_calls % self.check_freq == 0 and ep_info_buffer:

@@ -19,7 +19,11 @@ from src.utils.paths import ensure_directory
 
 @lru_cache(maxsize=1)
 def _load_pyplot() -> Any:
-    """Import matplotlib lazily and force a headless backend for batch jobs."""
+    """Import matplotlib lazily and force a headless backend for batch jobs.
+
+    Raises:
+        RuntimeError: If matplotlib is not installed in the active environment.
+    """
     try:
         import matplotlib
     except ImportError as exc:
@@ -71,7 +75,7 @@ class BacktestVisualizer:
         return self._save(fig, file_name)
 
     def _save(self, fig: Any, file_name: str) -> Path:
-        """Persist a matplotlib figure with shared export settings."""
+        """Persist a matplotlib figure with shared export settings and close it."""
         # Centralize export settings so all diagnostics use the same output quality.
         output_path = self.output_dir / file_name
         fig.tight_layout()

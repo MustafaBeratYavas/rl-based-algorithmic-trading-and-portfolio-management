@@ -14,7 +14,7 @@ class BaseRewardStrategy(ABC):
 
     @abstractmethod
     def calculate_reward(self, returns_history: list, current_return: float) -> float:
-        """Return the reward for the current step given the realized return path."""
+        """Return the reward for the current step given realized returns to date."""
         raise NotImplementedError
 
 

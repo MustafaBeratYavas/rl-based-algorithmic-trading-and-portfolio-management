@@ -31,7 +31,7 @@ class YFinanceDownloader:
     REQUIRED_COLUMNS = {"Open", "High", "Low", "Close", "Volume"}
 
     def __init__(self, config: dict[str, Any]):
-        """Initialize vendor, path, and quality-threshold settings from config."""
+        """Initialize vendor settings, quality thresholds, and the raw output directory."""
         self.config = config
         self.logger = get_logger(__name__)
         self.tickers = config.get("tickers", [])
@@ -49,7 +49,12 @@ class YFinanceDownloader:
         self.auto_adjust = bool(download_config.get("auto_adjust", True))
 
     def fetch_data(self) -> None:
-        """Download every configured ticker and enforce strict/partial failure policy."""
+        """Download configured tickers and apply the configured failure policy.
+
+        Raises:
+            ValueError: If the ticker universe is empty.
+            DownloadError: If strict mode is enabled and any ticker cannot be persisted.
+        """
         # Reject empty ticker universes before the pipeline can appear to succeed.
         if not self.tickers:
             raise ValueError("No tickers configured for data download.")
@@ -72,7 +77,7 @@ class YFinanceDownloader:
         self.logger.info("Data download process completed.")
 
     def _download_ticker(self, ticker: str) -> bool:
-        """Download a single ticker with retry/backoff and return persistence status."""
+        """Download and persist one ticker, returning whether a valid CSV was written."""
         # Retry transient provider and network failures before marking the ticker unavailable.
         for attempt in range(self.retries):
             try:
@@ -118,7 +123,7 @@ class YFinanceDownloader:
         return False
 
     def _validate_download(self, df: pd.DataFrame, ticker: str) -> None:
-        """Validate the raw vendor response before it can enter the data lake."""
+        """Validate required OHLCV shape, row count, missing-data density, and prices."""
         if df.empty:
             raise ValueError(f"No data retrieved for {ticker}.")
 

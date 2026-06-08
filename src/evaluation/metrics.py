@@ -11,7 +11,11 @@ import numpy as np
 
 
 def calculate_max_drawdown(portfolio_values: np.ndarray) -> float:
-    """Return the largest peak-to-trough loss in an account-value path."""
+    """Return the largest peak-to-trough loss in an account-value path.
+
+    Empty inputs and zero-capital prefixes return ``0.0`` rather than ``nan`` so
+    downstream reports remain finite.
+    """
     if len(portfolio_values) == 0:
         return 0.0
     peak = portfolio_values[0]
@@ -62,7 +66,11 @@ def calculate_sortino_ratio(
     annualization_factor: int = 252,
     annualize: bool = True,
 ) -> float:
-    """Calculate a finite Sortino ratio using downside volatility only."""
+    """Calculate a finite Sortino ratio using downside volatility only.
+
+    Returns ``0.0`` when there is insufficient downside history to define a
+    stable denominator.
+    """
     if len(returns) < 2:
         return 0.0
     mean_return = np.mean(returns)

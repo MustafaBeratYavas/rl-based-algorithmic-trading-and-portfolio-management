@@ -36,7 +36,7 @@ class DataProcessor:
     DEFAULT_PROCESSING = {"allow_partial": False}
 
     def __init__(self, config: dict[str, Any]):
-        """Bind processing paths, feature settings, and fail-fast policy from config."""
+        """Bind processing paths, feature settings, and partial-run policy from config."""
         self.config = config
         self.logger = get_logger(__name__)
         self.raw_path = resolve_project_path(config.get("paths", {}).get("raw_data", "data/raw"))
@@ -54,7 +54,12 @@ class DataProcessor:
         self.processing_config = {**self.DEFAULT_PROCESSING, **config.get("processing", {})}
 
     def process_all(self) -> None:
-        """Run the full raw-to-processed dataset build as an atomic orchestration step."""
+        """Build the processed dataset, split artifacts, scaler, and lineage metadata.
+
+        Raises:
+            ValueError: If required configuration or feature data is invalid.
+            RuntimeError: If no ticker can be processed or required tickers are skipped.
+        """
         # Fail fast on empty universes; a successful run must always produce real assets.
         if not self.tickers:
             raise ValueError("No tickers configured for data processing.")
@@ -107,7 +112,7 @@ class DataProcessor:
         self.logger.info("Saved processed dataset to %s", output_file)
 
     def _load_raw_csv(self, file_path: str | Path) -> pd.DataFrame:
-        """Load one raw CSV into a sorted numeric time series indexed by date."""
+        """Load one raw CSV as a date-indexed, numerically coerced time series."""
         df = pd.read_csv(file_path, index_col=0, parse_dates=True)
         if not isinstance(df.index, pd.DatetimeIndex):
             raise ValueError(f"Expected a DatetimeIndex in {file_path}")
@@ -136,7 +141,7 @@ class DataProcessor:
 
     @classmethod
     def _load_split_config(cls, split_config: dict[str, Any] | None) -> dict[str, float]:
-        """Return explicit train/validation/test ratios with complete-key validation."""
+        """Return train/validation/test ratios, requiring all keys when overridden."""
         if split_config is None:
             return {key: float(value) for key, value in cls.DEFAULT_SPLITS.items()}
 
@@ -221,7 +226,7 @@ class DataProcessor:
         return macd, macd_signal
 
     def _build_chronological_splits(self, df: pd.DataFrame) -> dict[str, pd.DatetimeIndex]:
-        """Create shared date-based splits so all tickers use identical boundaries."""
+        """Create shared date-based splits with non-empty train, validation, and test windows."""
         # Split by unique dates so every asset observes the same out-of-sample boundaries.
         ratios = {
             "train": float(self.split_config.get("train", 0.7)),
@@ -315,7 +320,7 @@ class DataProcessor:
     def _write_split_files(
         self, df: pd.DataFrame, split_dates: dict[str, pd.DatetimeIndex]
     ) -> None:
-        """Persist split-specific datasets for explicit train/eval consumption."""
+        """Write split-specific parquet datasets for explicit train/eval consumption."""
         for split_name, dates in split_dates.items():
             split_df = df[df.index.isin(dates)]
             split_df.to_parquet(self.processed_path / f"{split_name}_dataset.parquet")
@@ -326,7 +331,7 @@ class DataProcessor:
         output_file: Path,
         skipped_tickers: list[str],
     ) -> None:
-        """Write dataset lineage metadata next to the processed artifact."""
+        """Write checksum-backed dataset lineage metadata next to the processed artifact."""
         # Capture dataset lineage so experiments can be traced back to an exact artifact.
         checksum = hashlib.sha256(output_file.read_bytes()).hexdigest()
         metadata = {

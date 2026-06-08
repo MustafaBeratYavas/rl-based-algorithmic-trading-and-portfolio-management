@@ -81,7 +81,7 @@ class AgentFactory:
         config: dict[str, Any],
         verbose: int | None = None,
     ) -> BaseAlgorithm:
-        """Instantiate a configured SB3 agent with project-safe keyword filtering."""
+        """Instantiate a configured SB3 agent with algorithm-specific keyword filtering."""
         algorithm_name = cls._normalize_algorithm(algorithm)
         algorithm_class = cls._ALGORITHMS[algorithm_name]
         # Pass only algorithm-specific constructor parameters to avoid SB3 config leakage.
@@ -101,7 +101,7 @@ class AgentFactory:
         env: Env | VecEnv | None = None,
         **kwargs: Any,
     ) -> BaseAlgorithm:
-        """Load a persisted SB3 model, accepting extension-neutral config paths."""
+        """Load a persisted SB3 model, accepting paths with or without the ``.zip`` suffix."""
         algorithm_name = cls._normalize_algorithm(algorithm)
         resolved_path = resolve_project_path(model_path)
         # Accept extension-neutral config paths because SB3 persists models as zip archives.

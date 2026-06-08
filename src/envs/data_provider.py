@@ -52,7 +52,7 @@ class EnvironmentDataProvider:
     ]
 
     def __init__(self, config: dict[str, Any]):
-        """Capture the environment data contract from the resolved config."""
+        """Capture feature, price, ticker, date, and lookback requirements from config."""
         self.config = config
         self.logger = get_logger(__name__)
         self.feature_cols = list(config.get("features", self.DEFAULT_FEATURES))
@@ -63,7 +63,7 @@ class EnvironmentDataProvider:
         self.lookback_window = int(config.get("lookback_window", 30))
 
     def load(self) -> EnvironmentDataset:
-        """Return an aligned dataset ready for deterministic portfolio simulation."""
+        """Load, validate, align, and return tensors for deterministic simulation."""
         # Keep file access and panel construction outside the Gym environment boundary.
         self._validate_feature_contract()
         resolved_data_path = self._resolve_data_path()
@@ -150,7 +150,7 @@ class EnvironmentDataProvider:
             )
 
     def _resolve_data_path(self) -> Path:
-        """Resolve and validate the configured processed dataset path."""
+        """Resolve the configured processed dataset path and require it to exist."""
         data_path = self.config.get("data_path")
         if data_path is None:
             raise ValueError("PortfolioEnv requires a data_path config value.")
@@ -197,7 +197,7 @@ class EnvironmentDataProvider:
         tickers: list[str],
         required_columns: set[str],
     ) -> dict[str, pd.DataFrame]:
-        """Build one de-duplicated feature/price frame per configured ticker."""
+        """Build one de-duplicated feature/price frame per ticker in stable order."""
         # Deduplicate by date per ticker so the latest vendor row wins deterministically.
         ticker_frames: dict[str, pd.DataFrame] = {}
         for ticker in tickers:

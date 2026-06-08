@@ -24,7 +24,7 @@ from src.utils.logger import get_logger
 
 @runtime_checkable
 class PortfolioEnvLike(Protocol):
-    """Minimal environment surface required for model-agnostic backtesting."""
+    """Minimal unwrapped environment surface required for benchmark generation."""
 
     initial_balance: float
     tickers: list[str]
@@ -49,7 +49,7 @@ class Backtester:
         self.returns: list[float] = []
 
     def run_backtest(self) -> dict:
-        """Run one deterministic evaluation episode and return a report dictionary."""
+        """Run one deterministic evaluation episode and return a metric report."""
         self.logger.info("Starting backtest simulation...")
         # Reset accumulated paths so a Backtester instance can be reused safely.
         self.portfolio_values = []
@@ -84,7 +84,7 @@ class Backtester:
         return self._generate_report()
 
     def _generate_report(self) -> dict:
-        """Aggregate realized account paths into financial metrics and baselines."""
+        """Aggregate realized account paths into financial metrics and passive baselines."""
         # Convert collected paths once so metric functions operate on stable arrays.
         values_array = np.array(self.portfolio_values)
         returns_array = np.array(self.returns)
@@ -155,7 +155,7 @@ class Backtester:
     def _generate_static_weight_benchmark(
         self, target_weights_by_ticker: dict[str, float]
     ) -> dict[str, float]:
-        """Simulate a one-time static allocation under the environment cost model."""
+        """Simulate one initial rebalance followed by buy-and-hold growth."""
         # Model static benchmarks as one initial rebalance followed by buy-and-hold growth.
         unwrapped_env = self._portfolio_env()
         close_prices = unwrapped_env.close_prices
@@ -202,7 +202,7 @@ class Backtester:
     def _calculate_initial_allocation_cost(
         self, initial_balance: float, risky_weights: np.ndarray
     ) -> float:
-        """Apply the same initial risky-asset cost model used by static benchmarks."""
+        """Apply benchmark entry costs using the environment's current friction settings."""
         unwrapped_env = self._portfolio_env()
         buy_turnover = float(np.maximum(risky_weights, 0.0).sum())
         fee_rate = buy_turnover * float(getattr(unwrapped_env, "buy_fee_pct", 0.0))
