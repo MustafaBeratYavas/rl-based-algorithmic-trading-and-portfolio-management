@@ -218,7 +218,6 @@ python -m pip install --constraint requirements.lock ".[dev]"
 ### Prerequisites
 
 * **Python:** Python 3.11 through 3.13 available on your `PATH`.
-* **Package installer:** `pip`, `setuptools`, and `wheel` available in the active environment.
 * **Market data access:** Internet access is required when downloading configured Yahoo Finance data. Use `--skip-download` when raw CSV files already exist.
 * **Docker (optional):** Docker and Docker Compose are required only for [containerized execution](#docker-setup-and-execution). The local workflow does not depend on Docker.
 
